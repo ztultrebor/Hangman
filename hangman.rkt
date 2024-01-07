@@ -55,7 +55,7 @@
 ; functions
 
 (define (play hangman)
-  ; WarObjects -> WarObjects
+  ; Game -> Game
   ; run the pocket universe
   (big-bang hangman
     #;[on-tick xxxxxx]
@@ -65,14 +65,23 @@
 
 
 (define (render hangman)
+  ; Game -> Img
+  ; render the state of the game
   (overlay
-   (foldr beside NULLSPACE
+   (render-word (game-word hangman))
+   CANVAS))
+
+
+(define (render-word w)
+  (foldr beside NULLSPACE
          (map
           (lambda (ltr) (overlay
-                         (text (letter-char ltr) TEXTSIZE "black")
+                         (cond
+                           [(false? (letter-guessed ltr))
+                            (text "_" TEXTSIZE "black")]
+                           [else (text (letter-char ltr) TEXTSIZE "black")])
                          CHARCARD))
-          (game-word hangman)))
-  CANVAS))
+          w)))
   
 
 (define (get-random-word dictionary)
@@ -82,7 +91,7 @@
 ; ==========================
 ; actions
 
-(define WORD (map (lambda (ch) (make-letter ch #t))
+(define WORD (map (lambda (ch) (make-letter ch #f))
                   (explode (get-random-word DICTIONARY))))
 
 (define GAME (make-game WORD 5))
