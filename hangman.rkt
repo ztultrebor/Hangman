@@ -29,13 +29,14 @@
   (cons (fn-on-letter (first w)) (fn-on-word (rest w))))
 
 
-(define-struct game [word condemned])
-; A Game is a [Word N]
+(define-struct game [word condemned guesses])
+; A Game is a [Word N Word]
 ; contains a representation of the secret word,
 ; as well as the state of the condemned man
 #;
 (define (fn-on-game g)
-  (... (fn-on-word (game-word g)) ... (fn-on-N (game-condemned g))))
+  (... (fn-on-word (game-word g)) ... (fn-on-N (game-condemned g))
+       ... (fn-on-word (game-guesses g))))
 
 
 
@@ -49,6 +50,10 @@
 (define TEXTSIZE 64)
 (define CHARCARD
   (rectangle TEXTSIZE (quotient (* 3 TEXTSIZE) 4) "solid" "white"))
+(define ALPHABET "abcdefghijklmnopqrstuvwxyz")
+(define GUESSTEXTSIZE 16)
+(define GUESSCHARCARD
+  (rectangle GUESSTEXTSIZE (quotient (* 3 GUESSTEXTSIZE) 4) "solid" "white"))
 (define SCAFFOLD (overlay (text "Γ" 200 "black")
                           (rectangle 256 256 "solid" "white")))
 (define HEAD (above (rectangle 1 20 "solid" "black")
@@ -89,24 +94,9 @@
     (render-scaffold (game-condemned hangman))
     SPACER
     (render-word (game-word hangman)))
-   CANVAS))
-
-
-(define (render-scaffold n)
-  ; N -> Img
-  ; render the scaffold in various stages of construction
-  (cond
-    [(= 0 n) (place-image GRIMACE 184 108 (render-scaffold (add1 n)))]
-    [(= 1 n) (place-image EYE 192 98 (render-scaffold (add1 n)))]
-    [(= 2 n) (place-image EYE 176 98 (render-scaffold (add1 n)))]
-    [(= 3 n) (place-image RLEG 173 178 (render-scaffold (add1 n)))]
-    [(= 4 n) (place-image LLEG 195 178 (render-scaffold (add1 n)))]
-    [(= 5 n) (place-image RARM 176 133 (render-scaffold (add1 n)))]
-    [(= 6 n) (place-image LARM 192 133 (render-scaffold (add1 n)))]
-    [(= 7 n) (place-image BODY 184 143 (render-scaffold (add1 n)))]
-    [(= 8 n) (place-image HEAD 184 88 (render-scaffold (add1 n)))]
-    [(= 9 n) (overlay SCAFFOLD (render-scaffold (add1 n)))]
-    [(= 10 n) (rectangle 256 256 "solid" "white")]))
+   (overlay/align "right" "bottom"
+            (render-guesses (game-guesses hangman))
+            CANVAS)))
 
 
 (define (guess hangman ke)
@@ -129,6 +119,7 @@
    (andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))))
 
 
+; !!! refactor this
 (define (game-over hangman)
   ; Game -> Img
   ; render the end-screen, win or lose
@@ -158,12 +149,11 @@
   (local (
           (define selection
             (retrieve-word dictionary (random (length dictionary))))
-          (define no-caps (string-downcase selection))
-          (define explosure (explode no-caps)))
+          (define no-caps (string-downcase selection)))
+          
     ; - IN -
-    (map (lambda (ch) (make-letter ch #f)) explosure)))
+    (string-to-word no-caps)))
   
-
 
 (define (retrieve-word dictionary n)
   ; [ListOf String] N -> String
@@ -173,8 +163,19 @@
     [else (retrieve-word (rest dictionary) (sub1 n))]))
 
 
+(define (string-to-word str)
+  ; String -> Word
+  ; converts a dictuonary string into a hangman word
+  (local (
+          (define explosure (explode str)))
+    ; - IN -
+    (map (lambda (ch) (make-letter ch #f)) explosure)))
+
+
+;!!! refactor this
 (define (check-guess gm ke)
   ; Game KeyEvent -> Game
+  ; update game state based on valid guess
   (local (
           (define ch (string-downcase ke))
           (define (comp ltr) (string=? ch (letter-char ltr))))
@@ -185,9 +186,20 @@
         (map
          (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
          (game-word gm))
-        (game-condemned gm))]
-      [else (make-game (game-word gm) (sub1 (game-condemned gm)))])))
+        (game-condemned gm)
+        (map
+         (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
+         (game-guesses gm)))]
+      [else
+       (make-game
+        (game-word gm)
+        (sub1 (game-condemned gm))
+        (map
+         (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
+         (game-guesses gm)))])))
 
+
+; !!! abstractions
 
 (define (render-word wd)
   ; Word -> Img
@@ -218,31 +230,83 @@
           wd)))
 
 
+(define (render-guesses wd)
+  ; Word -> Img
+  ; displays all the letters that have been guessed
+  (foldr beside NULLSPACE
+         (map
+          (lambda (ltr) (overlay
+                         (cond
+                           [(false? (letter-guessed ltr))
+                            (text "" GUESSTEXTSIZE "black")]
+                           [else (text (letter-char ltr) GUESSTEXTSIZE "black")])
+                         GUESSCHARCARD))
+          wd)))
+
+
+(define (render-scaffold n)
+  ; N -> Img
+  ; render the scaffold in various stages of construction
+  (cond
+    [(= 0 n) (place-image GRIMACE 184 108 (render-scaffold (add1 n)))]
+    [(= 1 n) (place-image EYE 192 98 (render-scaffold (add1 n)))]
+    [(= 2 n) (place-image EYE 176 98 (render-scaffold (add1 n)))]
+    [(= 3 n) (place-image RLEG 173 178 (render-scaffold (add1 n)))]
+    [(= 4 n) (place-image LLEG 195 178 (render-scaffold (add1 n)))]
+    [(= 5 n) (place-image RARM 176 133 (render-scaffold (add1 n)))]
+    [(= 6 n) (place-image LARM 192 133 (render-scaffold (add1 n)))]
+    [(= 7 n) (place-image BODY 184 143 (render-scaffold (add1 n)))]
+    [(= 8 n) (place-image HEAD 184 88 (render-scaffold (add1 n)))]
+    [(= 9 n) (overlay SCAFFOLD (render-scaffold (add1 n)))]
+    [(= 10 n) (rectangle 256 256 "solid" "white")]))
+
+
 
 ; ==========================
 ;checks
 
-(define mini-game-start (make-game  (list (make-letter "t" #f)
-                                          (make-letter "h" #f)
-                                          (make-letter "e" #f)) 5))
-(define mini-game-t (make-game  (list (make-letter "t" #t)
-                                      (make-letter "h" #f)
-                                      (make-letter "e" #f)) 5))
-(define mini-game-h (make-game  (list (make-letter "t" #f)
-                                      (make-letter "h" #t)
-                                      (make-letter "e" #f)) 5))
-(define mini-game-e (make-game  (list (make-letter "t" #f)
-                                      (make-letter "h" #f)
-                                      (make-letter "e" #t)) 5))
-(define mini-game-false (make-game  (list (make-letter "t" #f)
-                                          (make-letter "h" #f)
-                                          (make-letter "e" #f)) 4))
-(define mini-game-win (make-game  (list (make-letter "t" #t)
-                                        (make-letter "h" #t)
-                                        (make-letter "e" #t)) 5))
-(define mini-game-lose (make-game  (list (make-letter "t" #t)
+(define mini-game-start (make-game (list (make-letter "t" #f)
                                          (make-letter "h" #f)
-                                         (make-letter "e" #t)) 0))
+                                         (make-letter "e" #f))
+                                   5 (list (make-letter "t" #f)
+                                           (make-letter "h" #f)
+                                           (make-letter "e" #f))))
+(define mini-game-t (make-game (list (make-letter "t" #t)
+                                     (make-letter "h" #f)
+                                     (make-letter "e" #f))
+                               5 (list (make-letter "t" #t)
+                                       (make-letter "h" #f)
+                                       (make-letter "e" #f))))
+(define mini-game-h (make-game (list (make-letter "t" #f)
+                                     (make-letter "h" #t)
+                                     (make-letter "e" #f))
+                               5 (list (make-letter "t" #f)
+                                       (make-letter "h" #t)
+                                       (make-letter "e" #f))))
+(define mini-game-e (make-game (list (make-letter "t" #f)
+                                     (make-letter "h" #f)
+                                     (make-letter "e" #t))
+                               5 (list (make-letter "t" #f)
+                                       (make-letter "h" #f)
+                                       (make-letter "e" #t))))
+(define mini-game-false (make-game (list (make-letter "t" #f)
+                                         (make-letter "h" #f)
+                                         (make-letter "e" #f))
+                                   4 (list (make-letter "t" #f)
+                                           (make-letter "h" #f)
+                                           (make-letter "e" #f))))
+(define mini-game-win (make-game (list (make-letter "t" #t)
+                                       (make-letter "h" #t)
+                                       (make-letter "e" #t))
+                                 5 (list (make-letter "t" #f)
+                                         (make-letter "h" #f)
+                                         (make-letter "e" #f))))
+(define mini-game-lose (make-game (list (make-letter "t" #t)
+                                        (make-letter "h" #f)
+                                        (make-letter "e" #t))
+                                  0 (list (make-letter "t" #f)
+                                          (make-letter "h" #f)
+                                          (make-letter "e" #f))))
 (define beatles-words (list "eggman" "walrus" "Lucy"))
 (define stones-words (list "RT"))
 (check-expect (check-guess mini-game-start "T") mini-game-t)
@@ -266,6 +330,5 @@
 
 
 (define WORD (generate-word DICTIONARY))
-(define GAME (make-game WORD 9))
+(define GAME (make-game WORD 9 (string-to-word ALPHABET)))
 (play GAME)
-
