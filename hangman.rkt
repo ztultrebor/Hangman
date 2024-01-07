@@ -42,6 +42,12 @@
 ; constants
 
 (define DICTIONARY '("eggman", "walrus"))
+(define HEIGHT 750)
+(define CANVAS (empty-scene (quotient (* 1618 HEIGHT) 1000) HEIGHT "white"))
+(define TEXTSIZE 64)
+(define CHARCARD
+  (rectangle TEXTSIZE (quotient (* 3 TEXTSIZE) 4) "solid" "white"))
+(define NULLSPACE (rectangle 0 0 "solid" "white"))
 
 
 
@@ -57,13 +63,20 @@
     [to-draw render]
     #;[stop-when xxxxxxx xxxxxxx]))
 
+
 (define (render hangman)
-  (empty-scene 1400 700 "white"))
+  (overlay
+   (foldr beside NULLSPACE
+         (map
+          (lambda (ltr) (overlay
+                         (text (letter-char ltr) TEXTSIZE "black")
+                         CHARCARD))
+          (game-word hangman)))
+  CANVAS))
   
 
 (define (get-random-word dictionary)
-  "lucy")
-
+  "narwallawner")
 
 
 ; ==========================
