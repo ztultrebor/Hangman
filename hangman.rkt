@@ -3,6 +3,7 @@
 #reader(lib "htdp-intermediate-lambda-reader.ss" "lang")((modname hangman) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
 (require 2htdp/universe)
 (require 2htdp/image)
+(require 2htdp/batch-io)
 
 
 ; A Game of Hangman
@@ -41,7 +42,8 @@
 ; =========================
 ; constants
 
-(define DICTIONARY '("eggman", "walrus"))
+(define LOCATION "/usr/share/dict/words")
+(define DICTIONARY (read-lines LOCATION))
 (define HEIGHT 750)
 (define CANVAS (empty-scene (quotient (* 1618 HEIGHT) 1000) HEIGHT "white"))
 (define TEXTSIZE 64)
@@ -134,15 +136,36 @@
     [(= 0 (game-condemned hangman))
      (overlay
       (above 
-       (text "Game Over!" 128 "black")
-       (text "You have failed" 64 "black"))
+       (text "Game Over!" 128 "red")
+       (text "You have failed" 64 "red"))
       (render hangman))]
     [(andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))
      (overlay
       (above 
-       (text "Game Over!" 128 "black")
-       (text "You win!" 64 "black"))
+       (text "Game Over!" 128 "green")
+       (text "You win!" 64 "green"))
       (render hangman))]))
+
+
+(define (generate-word dictionary)
+  ; [ListOf String] -> Word
+  ; gets a random word from the dictionary and preps it for hangman game
+  (local (
+          (define selection
+            (retrieve-word dictionary (random (length dictionary))))
+          (define no-caps (string-downcase selection))
+          (define explosure (explode no-caps)))
+    ; - IN -
+    (map (lambda (ch) (make-letter ch #f)) explosure)))
+  
+
+
+(define (retrieve-word dictionary n)
+  ; [ListOf String] N -> String
+  ; retrieves the nth word from the dictionary
+  (cond
+    [(= 0 n) (first dictionary)]
+    [else (retrieve-word (rest dictionary) (sub1 n))]))
 
 
 (define (check-guess gm ke)
@@ -176,10 +199,6 @@
           wd)))
   
 
-(define (get-random-word dictionary)
-  "narwallawner")
-
-
 
 ; ==========================
 ;checks
@@ -205,6 +224,8 @@
 (define mini-game-lose (make-game  (list (make-letter "t" #t)
                                          (make-letter "h" #f)
                                          (make-letter "e" #t)) 0))
+(define beatles-words (list "eggman" "walrus" "Lucy"))
+(define stones-words (list "RT"))
 (check-expect (check-guess mini-game-start "T") mini-game-t)
 (check-expect (check-guess mini-game-start "h") mini-game-h)
 (check-expect (check-guess mini-game-start "E") mini-game-e)
@@ -215,18 +236,17 @@
 (check-expect (guess mini-game-start "wheel-up") mini-game-start)
 (check-satisfied mini-game-win end?)
 (check-satisfied mini-game-lose end?)
+(check-expect (retrieve-word beatles-words 1) "walrus")
+(check-expect (generate-word stones-words)
+              (list (make-letter "r" #false) (make-letter "t" #false)))
 
 
 
 ; ==========================
 ; actions
 
-(define WORD (map (lambda (ch) (make-letter ch #f))
-                  (explode (get-random-word DICTIONARY))))
 
+(define WORD (generate-word DICTIONARY))
 (define GAME (make-game WORD 9))
-
-(check-guess GAME "w")
-
 (play GAME)
 
