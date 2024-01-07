@@ -138,7 +138,12 @@
       (above 
        (text "Game Over!" 128 "red")
        (text "You have failed" 64 "red"))
-      (render hangman))]
+      (overlay
+       (above
+        (render-scaffold (game-condemned hangman))
+        SPACER
+        (render-word-endgame (game-word hangman)))
+       CANVAS))]
     [(andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))
      (overlay
       (above 
@@ -197,7 +202,21 @@
                            [else (text (letter-char ltr) TEXTSIZE "black")])
                          CHARCARD))
           wd)))
-  
+
+
+(define (render-word-endgame wd)
+  ; Word -> Img
+  ; displays all the letters of the secret word
+  (foldr beside NULLSPACE
+         (map
+          (lambda (ltr) (overlay
+                         (cond
+                           [(false? (letter-guessed ltr))
+                            (text (letter-char ltr) TEXTSIZE "red")]
+                           [else (text (letter-char ltr) TEXTSIZE "black")])
+                         CHARCARD))
+          wd)))
+
 
 
 ; ==========================
