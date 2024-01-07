@@ -61,7 +61,7 @@
     #;[on-tick xxxxxx]
     [on-key guess]
     [to-draw render]
-    #;[stop-when xxxxxxx xxxxxxx]))
+    [stop-when end? game-over]))
 
 
 (define (render hangman)
@@ -73,9 +73,10 @@
 
 
 (define (guess hangman ke)
-  ;Game KeyEvent -> Game
+  ; Game KeyEvent -> Game
   ; determines a proper course of actions on a keyboard strike
   (cond
+    [(key=? " " ke) hangman]
     [(key=? "\b" ke) hangman]
     [(key=? "left" ke) hangman]
     [(key=? "right" ke) hangman]
@@ -85,7 +86,33 @@
     [(key=? "rshift" ke) hangman]
     [else (check-guess hangman ke)]))
 
-               
+
+(define (end? hangman)
+  ; Game -> Boolean
+  ; ends the game when solved or dead
+  (or
+   (= 0 (game-condemned hangman))
+   (andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))))
+
+
+(define (game-over hangman)
+  ; Game -> Img
+  ; render the end-screen, win or lose
+  (cond
+    [(= 0 (game-condemned hangman))
+     (overlay
+      (above 
+       (text "Game Over!" 128 "black")
+       (text "You have failed" 64 "black"))
+      (render hangman))]
+    [(andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))
+     (overlay
+      (above 
+       (text "Game Over!" 128 "black")
+       (text "You win!" 64 "black"))
+      (render hangman))]))
+
+
 (define (check-guess gm ke)
   ; Game KeyEvent -> Game
   (local (
@@ -129,23 +156,31 @@
                                           (make-letter "h" #f)
                                           (make-letter "e" #f)) 5))
 (define mini-game-t (make-game  (list (make-letter "t" #t)
-                                         (make-letter "h" #f)
-                                         (make-letter "e" #f)) 5))
+                                      (make-letter "h" #f)
+                                      (make-letter "e" #f)) 5))
 (define mini-game-h (make-game  (list (make-letter "t" #f)
-                                         (make-letter "h" #t)
-                                         (make-letter "e" #f)) 5))
+                                      (make-letter "h" #t)
+                                      (make-letter "e" #f)) 5))
 (define mini-game-e (make-game  (list (make-letter "t" #f)
-                                         (make-letter "h" #f)
-                                         (make-letter "e" #t)) 5))
+                                      (make-letter "h" #f)
+                                      (make-letter "e" #t)) 5))
 (define mini-game-false (make-game  (list (make-letter "t" #f)
+                                          (make-letter "h" #f)
+                                          (make-letter "e" #f)) 4))
+(define mini-game-win (make-game  (list (make-letter "t" #t)
+                                        (make-letter "h" #t)
+                                        (make-letter "e" #t)) 5))
+(define mini-game-lose (make-game  (list (make-letter "t" #t)
                                          (make-letter "h" #f)
-                                         (make-letter "e" #f)) 4))
+                                         (make-letter "e" #t)) 0))
 (check-expect (check-guess mini-game-start "T") mini-game-t)
 (check-expect (check-guess mini-game-start "h") mini-game-h)
 (check-expect (check-guess mini-game-start "E") mini-game-e)
 (check-expect (check-guess mini-game-start "x") mini-game-false)
 (check-expect (guess mini-game-start "T") mini-game-t)
 (check-expect (guess mini-game-start "\r") mini-game-start)
+(check-satisfied mini-game-win end?)
+(check-satisfied mini-game-lose end?)
 
 
 
