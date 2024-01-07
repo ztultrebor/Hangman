@@ -238,8 +238,8 @@
           (lambda (ltr) (overlay
                          (cond
                            [(false? (letter-guessed ltr))
-                            (text "" GUESSTEXTSIZE "black")]
-                           [else (text (letter-char ltr) GUESSTEXTSIZE "black")])
+                            (text (letter-char ltr) GUESSTEXTSIZE "black")]
+                           [else (text "" GUESSTEXTSIZE "black")])
                          GUESSCHARCARD))
           wd)))
 
