@@ -47,6 +47,21 @@
 (define TEXTSIZE 64)
 (define CHARCARD
   (rectangle TEXTSIZE (quotient (* 3 TEXTSIZE) 4) "solid" "white"))
+(define SCAFFOLD (overlay (text "Γ" 200 "black")
+                          (rectangle 256 256 "solid" "white")))
+(define HEAD (above (rectangle 1 20 "solid" "black")
+                    (circle 20 "outline" "black")))
+(define BODY (rectangle 4 50 "solid" "black"))
+(define LARM (rotate 45 (rectangle 2 20 "solid" "black")))
+(define RARM (rotate 90 LARM))
+(define LLEG (rotate 45 (rectangle 3 30 "solid" "black")))
+(define RLEG (rotate 90 LLEG))
+(define EYE (text "X" 8 "black"))
+(define GRIMACE (add-curve (rectangle 20 10 "solid" "white")
+                           0 5 75 1/2
+                           20 5 75 1/2
+                           "black"))
+(define SPACER (rectangle 0 128 "solid" "white"))
 (define NULLSPACE (rectangle 0 0 "solid" "white"))
 
 
@@ -68,22 +83,39 @@
   ; Game -> Img
   ; render the state of the game
   (overlay
-   (render-word (game-word hangman))
+   (above
+    (render-scaffold (game-condemned hangman))
+    SPACER
+    (render-word (game-word hangman)))
    CANVAS))
+
+
+(define (render-scaffold n)
+  ; N -> Img
+  ; render the scaffold in various stages of construction
+  (cond
+    [(= 0 n) (place-image GRIMACE 184 108 (render-scaffold (add1 n)))]
+    [(= 1 n) (place-image EYE 192 98 (render-scaffold (add1 n)))]
+    [(= 2 n) (place-image EYE 176 98 (render-scaffold (add1 n)))]
+    [(= 3 n) (place-image RLEG 173 178 (render-scaffold (add1 n)))]
+    [(= 4 n) (place-image LLEG 195 178 (render-scaffold (add1 n)))]
+    [(= 5 n) (place-image RARM 176 133 (render-scaffold (add1 n)))]
+    [(= 6 n) (place-image LARM 192 133 (render-scaffold (add1 n)))]
+    [(= 7 n) (place-image BODY 184 143 (render-scaffold (add1 n)))]
+    [(= 8 n) (place-image HEAD 184 88 (render-scaffold (add1 n)))]
+    [(= 9 n) (overlay SCAFFOLD (render-scaffold (add1 n)))]
+    [(= 10 n) (rectangle 256 256 "solid" "white")]))
 
 
 (define (guess hangman ke)
   ; Game KeyEvent -> Game
   ; determines a proper course of actions on a keyboard strike
   (cond
+    [(> (string-length ke) 1) hangman]
     [(key=? " " ke) hangman]
     [(key=? "\b" ke) hangman]
-    [(key=? "left" ke) hangman]
-    [(key=? "right" ke) hangman]
     [(key=? "\r" ke) hangman]
     [(key=? "\t" ke) hangman]
-    [(key=? "shift" ke) hangman]
-    [(key=? "rshift" ke) hangman]
     [else (check-guess hangman ke)]))
 
 
@@ -178,7 +210,9 @@
 (check-expect (check-guess mini-game-start "E") mini-game-e)
 (check-expect (check-guess mini-game-start "x") mini-game-false)
 (check-expect (guess mini-game-start "T") mini-game-t)
+(check-expect (guess mini-game-start " ") mini-game-start)
 (check-expect (guess mini-game-start "\r") mini-game-start)
+(check-expect (guess mini-game-start "wheel-up") mini-game-start)
 (check-satisfied mini-game-win end?)
 (check-satisfied mini-game-lose end?)
 
@@ -190,8 +224,9 @@
 (define WORD (map (lambda (ch) (make-letter ch #f))
                   (explode (get-random-word DICTIONARY))))
 
-(define GAME (make-game WORD 5))
+(define GAME (make-game WORD 9))
 
 (check-guess GAME "w")
 
 (play GAME)
+
