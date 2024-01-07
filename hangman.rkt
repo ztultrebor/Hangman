@@ -59,7 +59,7 @@
   ; run the pocket universe
   (big-bang hangman
     #;[on-tick xxxxxx]
-    #;[on-key xxxxxxx]
+    [on-key guess]
     [to-draw render]
     #;[stop-when xxxxxxx xxxxxxx]))
 
@@ -72,7 +72,40 @@
    CANVAS))
 
 
-(define (render-word w)
+(define (guess hangman ke)
+  ;Game KeyEvent -> Game
+  ; determines a proper course of actions on a keyboard strike
+  (cond
+    [(key=? "\b" ke) hangman]
+    [(key=? "left" ke) hangman]
+    [(key=? "right" ke) hangman]
+    [(key=? "\r" ke) hangman]
+    [(key=? "\t" ke) hangman]
+    [(key=? "shift" ke) hangman]
+    [(key=? "rshift" ke) hangman]
+    [else (check-guess hangman ke)]))
+
+               
+(define (check-guess gm ke)
+  ; Game KeyEvent -> Game
+  (local (
+          (define ch (string-downcase ke))
+          (define (comp ltr) (string=? ch (letter-char ltr))))
+    ; - IN -
+    (cond
+      [(ormap comp (game-word gm))
+       (make-game 
+        (map
+         (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
+         (game-word gm))
+        (game-condemned gm))]
+      [else (make-game (game-word gm) (sub1 (game-condemned gm)))])))
+
+
+(define (render-word wd)
+  ; Word -> Img
+  ; displays the letters of the secret word, or not,
+  ; based on if they've been guessed
   (foldr beside NULLSPACE
          (map
           (lambda (ltr) (overlay
@@ -81,11 +114,39 @@
                             (text "_" TEXTSIZE "black")]
                            [else (text (letter-char ltr) TEXTSIZE "black")])
                          CHARCARD))
-          w)))
+          wd)))
   
 
 (define (get-random-word dictionary)
   "narwallawner")
+
+
+
+; ==========================
+;checks
+
+(define mini-game-start (make-game  (list (make-letter "t" #f)
+                                          (make-letter "h" #f)
+                                          (make-letter "e" #f)) 5))
+(define mini-game-t (make-game  (list (make-letter "t" #t)
+                                         (make-letter "h" #f)
+                                         (make-letter "e" #f)) 5))
+(define mini-game-h (make-game  (list (make-letter "t" #f)
+                                         (make-letter "h" #t)
+                                         (make-letter "e" #f)) 5))
+(define mini-game-e (make-game  (list (make-letter "t" #f)
+                                         (make-letter "h" #f)
+                                         (make-letter "e" #t)) 5))
+(define mini-game-false (make-game  (list (make-letter "t" #f)
+                                         (make-letter "h" #f)
+                                         (make-letter "e" #f)) 4))
+(check-expect (check-guess mini-game-start "T") mini-game-t)
+(check-expect (check-guess mini-game-start "h") mini-game-h)
+(check-expect (check-guess mini-game-start "E") mini-game-e)
+(check-expect (check-guess mini-game-start "x") mini-game-false)
+(check-expect (guess mini-game-start "T") mini-game-t)
+(check-expect (guess mini-game-start "\r") mini-game-start)
+
 
 
 ; ==========================
@@ -95,5 +156,7 @@
                   (explode (get-random-word DICTIONARY))))
 
 (define GAME (make-game WORD 5))
+
+(check-guess GAME "w")
 
 (play GAME)
