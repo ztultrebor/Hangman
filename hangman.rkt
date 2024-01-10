@@ -119,28 +119,26 @@
    (andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))))
 
 
-; !!! refactor this
 (define (game-over hangman)
   ; Game -> Img
   ; render the end-screen, win or lose
-  (cond
-    [(= 0 (game-condemned hangman))
-     (overlay
+  (local (
+    (define (game-over-display hangman go-text text-color)
+    (overlay
       (above 
-       (text "Game Over!" 128 "red")
-       (text "You have failed" 64 "red"))
+       (text "Game Over!" 128 text-color)
+       (text go-text 64 text-color))
       (overlay
        (above
         (render-scaffold (game-condemned hangman))
         SPACER
         (render-word-endgame (game-word hangman)))
-       CANVAS))]
+       CANVAS))))
+  (cond
+    [(= 0 (game-condemned hangman))
+     (game-over-display hangman "You have failed" "red")]
     [(andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))
-     (overlay
-      (above 
-       (text "Game Over!" 128 "green")
-       (text "You win!" 64 "green"))
-      (render hangman))]))
+     (game-over-display hangman "You win!" "green")])))
 
 
 (define (generate-word dictionary)
