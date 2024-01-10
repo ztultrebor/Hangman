@@ -95,8 +95,8 @@
     SPACER
     (render-word (game-word hangman)))
    (overlay/align "right" "bottom"
-            (render-guesses (game-guesses hangman))
-            CANVAS)))
+                  (render-guesses (game-guesses hangman))
+                  CANVAS)))
 
 
 (define (guess hangman ke)
@@ -123,22 +123,22 @@
   ; Game -> Img
   ; render the end-screen, win or lose
   (local (
-    (define (game-over-display hangman go-text text-color)
-    (overlay
-      (above 
-       (text "Game Over!" 128 text-color)
-       (text go-text 64 text-color))
-      (overlay
-       (above
-        (render-scaffold (game-condemned hangman))
-        SPACER
-        (render-word-endgame (game-word hangman)))
-       CANVAS))))
-  (cond
-    [(= 0 (game-condemned hangman))
-     (game-over-display hangman "You have failed" "red")]
-    [(andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))
-     (game-over-display hangman "You win!" "green")])))
+          (define (game-over-display hangman go-text text-color)
+            (overlay
+             (above 
+              (text "Game Over!" 128 text-color)
+              (text go-text 64 text-color))
+             (overlay
+              (above
+               (render-scaffold (game-condemned hangman))
+               SPACER
+               (render-word-endgame (game-word hangman)))
+              CANVAS))))
+    (cond
+      [(= 0 (game-condemned hangman))
+       (game-over-display hangman "You have failed" "red")]
+      [(andmap (lambda (ch) (letter-guessed ch)) (game-word hangman))
+       (game-over-display hangman "You win!" "green")])))
 
 
 (define (generate-word dictionary)
@@ -170,31 +170,32 @@
     (map (lambda (ch) (make-letter ch #f)) explosure)))
 
 
-;!!! refactor this
 (define (check-guess gm ke)
   ; Game KeyEvent -> Game
   ; update game state based on valid guess
   (local (
           (define ch (string-downcase ke))
-          (define (comp ltr) (string=? ch (letter-char ltr))))
+          (define (comp ltr)
+            ; Letter -> Boolean
+            (string=? ch (letter-char ltr)))
+          (define (remap-word word)
+            ; Word -> Word
+            ; pinpoints correct guesses
+            (map
+             (lambda (ltr)
+               (if (comp ltr) (make-letter (letter-char ltr) #t) ltr)) word)))
     ; - IN -
     (cond
       [(ormap comp (game-word gm))
        (make-game 
-        (map
-         (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
-         (game-word gm))
+        (remap-word (game-word gm))
         (game-condemned gm)
-        (map
-         (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
-         (game-guesses gm)))]
+        (remap-word (game-guesses gm)))]
       [else
        (make-game
         (game-word gm)
         (sub1 (game-condemned gm))
-        (map
-         (lambda (ltr) (if (comp ltr) (make-letter (letter-char ltr) #t) ltr))
-         (game-guesses gm)))])))
+        (remap-word (game-guesses gm)))])))
 
 
 ; !!! abstractions
