@@ -48,12 +48,14 @@
 (define HEIGHT 750)
 (define CANVAS (empty-scene (quotient (* 1618 HEIGHT) 1000) HEIGHT "white"))
 (define TEXTSIZE 64)
-(define CHARCARD
-  (rectangle TEXTSIZE (quotient (* 3 TEXTSIZE) 4) "solid" "white"))
+(define CHARCARD ; the backside of the letter "card"
+  (rectangle TEXTSIZE TEXTSIZE "solid" "white"))
+(define INVISICHARCARD
+  (rectangle TEXTSIZE TEXTSIZE "outline" "white"))
 (define ALPHABET "abcdefghijklmnopqrstuvwxyz")
 (define GUESSTEXTSIZE 16)
 (define GUESSCHARCARD
-  (rectangle GUESSTEXTSIZE (quotient (* 3 GUESSTEXTSIZE) 4) "solid" "white"))
+  (rectangle GUESSTEXTSIZE GUESSTEXTSIZE "solid" "white"))
 (define SCAFFOLD (overlay (text "Γ" 200 "black")
                           (rectangle 256 256 "solid" "white")))
 (define HEAD (above (rectangle 1 20 "solid" "black")
@@ -93,7 +95,7 @@
    (above
     (render-scaffold (game-condemned hangman))
     SPACER
-    (render-word (game-word hangman)))
+    (render-word-ingame (game-word hangman)))
    (overlay/align "right" "bottom"
                   (render-guesses (game-guesses hangman))
                   CANVAS)))
@@ -198,49 +200,48 @@
         (remap-word (game-guesses gm)))])))
 
 
-; !!! abstractions
+(define (render-word word pred blocking-char fontsize fontcolor letter-backside)
+  ; Word [1String -> Boolean] 1String N String Img -> Img
+  ; abstraction for all word-rendering
+  ; takes a word, a boolean predicate (false? or true?),
+  ; a character to display in place of an unknown letter,
+  ; the font size, the font color, and the "card" backside
+  ; to dislay when the letter has not yet been revealed
+  (foldr beside NULLSPACE
+         (map
+          (lambda (ltr) (overlay
+                         (cond
+                           [(pred (letter-guessed ltr))
+                            (text blocking-char fontsize fontcolor)]
+                           [else (text (letter-char ltr) fontsize fontcolor)])
+                         letter-backside)) word)))
 
-(define (render-word wd)
+
+(define (render-word-ingame word)
   ; Word -> Img
   ; displays the letters of the secret word, or not,
   ; based on if they've been guessed
-  (foldr beside NULLSPACE
-         (map
-          (lambda (ltr) (overlay
-                         (cond
-                           [(false? (letter-guessed ltr))
-                            (text "_" TEXTSIZE "black")]
-                           [else (text (letter-char ltr) TEXTSIZE "black")])
-                         CHARCARD))
-          wd)))
+  (render-word word false? "_" TEXTSIZE "black" CHARCARD))
 
 
-(define (render-word-endgame wd)
+(define (render-word-endgame word)
   ; Word -> Img
   ; displays all the letters of the secret word
-  (foldr beside NULLSPACE
-         (map
-          (lambda (ltr) (overlay
-                         (cond
-                           [(false? (letter-guessed ltr))
-                            (text (letter-char ltr) TEXTSIZE "red")]
-                           [else (text (letter-char ltr) TEXTSIZE "black")])
-                         CHARCARD))
-          wd)))
+  (overlay 
+   (render-word word true? "" TEXTSIZE "red" INVISICHARCARD)
+   (render-word word false? "" TEXTSIZE "black" INVISICHARCARD)))
 
 
-(define (render-guesses wd)
+(define (render-guesses word)
   ; Word -> Img
-  ; displays all the letters that have been guessed
-  (foldr beside NULLSPACE
-         (map
-          (lambda (ltr) (overlay
-                         (cond
-                           [(false? (letter-guessed ltr))
-                            (text (letter-char ltr) GUESSTEXTSIZE "black")]
-                           [else (text "" GUESSTEXTSIZE "black")])
-                         GUESSCHARCARD))
-          wd)))
+  ; displays all the letters that have yet to be been guessed
+  (render-word word true? "" GUESSTEXTSIZE "black" GUESSCHARCARD))
+
+
+(define (true? x)
+  ; Boolean -> Boolean
+  ; opposite of false?
+  (not (false? x)))
 
 
 (define (render-scaffold n)
